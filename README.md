@@ -18,7 +18,7 @@ Environments with different secrets and variables for deploy an access with dist
 - Staging: Need approvals
 - Production: Need approvals
 
-### Pull request 
+### Pull Request
 The workflow is working over a trunk-base development. Create feature, pull request to main branch and ready to deploy.
 
 ### Manual dispatch

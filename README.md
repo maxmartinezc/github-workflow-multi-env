@@ -25,4 +25,6 @@ Environments with different secrets and variables for deploy an access with dist
 The workflow is working over a trunk-base development. Create feature, pull request to main branch and ready to deploy.
 
 ### Manual dispatch
-Manually run workflow to deploy a version into specific environment
+Manually run workflow to deploy a version into specific environment:
+
+![](doc/manual-deploy.gif)

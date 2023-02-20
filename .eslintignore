@@ -1,0 +1,8 @@
+**/*.test.js
+**/test/**
+
+#functional tests
+**/*.iso.js
+/node_modules
+.*
+coverage/

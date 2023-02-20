@@ -1,0 +1,122 @@
+name: Build
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, closed]
+
+jobs:
+  Build-and-Test:
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: 'Install Dependencies'
+        run: npm install
+
+      - name: 'Eslint'
+        run: npm run eslint
+
+      - name: 'Coverage Check'
+        run: |
+          echo "# Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          npm run check-coverage >> $GITHUB_STEP_SUMMARY
+
+      - name: 'Dependency Review'
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: high
+
+  Artifact:
+    permissions:
+      actions: write
+      contents: write
+    timeout-minutes: 10
+    if: github.event.pull_request.merged == true
+    needs: ['Build-and-Test']
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.generate_tag_version.outputs.version_number }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+
+      - name: 'Remove Dev Dependencies'
+        run: npm prune --production
+
+      - name: 'Remove unused files'
+        run: |
+          rm -f www/node-server.js jest.config.json .eslintrc.json .eslintignore .editorconfig .gitignore README.md
+          rm -rf .github .git tests
+
+      - name: 'Generate Tag Version'
+        id: generate_tag_version
+        run: |
+         VERSION=$(node -p "require('./package.json').version")-$(date +%Y%m%d)-$(date +%H%M%S)
+         echo $VERSION > version.txt
+         echo "version_number=$VERSION" >> $GITHUB_OUTPUT
+         echo "Tag Version: $VERSION" >> $GITHUB_STEP_SUMMARY
+
+      - name: 'Create package'
+        id: 'create_package'
+        run: |
+          PACKAGE_NAME=${{ steps.generate_tag_version.outputs.version_number }}.zip
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          zip -r $PACKAGE_NAME .
+          echo "Zip Filename: $PACKAGE_NAME" >> $GITHUB_STEP_SUMMARY
+
+      - name: 'Configure AWS Credentials'
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          aws-access-key-id: ${{ secrets.AWS_S3_BUCKET_USER_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_S3_BUCKET_USER_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_S3_BUCKET_REGION }}
+
+      - name: 'Upload Source To S3 Bucket'
+        run: |
+          aws s3 cp ${{ steps.create_package.outputs.package_name }} s3://${{ secrets.AWS_S3_BUCKET_NAME }}
+
+      - uses: actions/github-script@v6
+        name: 'Create Git Tag'
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.generate_tag_version.outputs.version_number }}',
+              sha: context.sha
+            })
+
+  Development:
+    needs: ['Artifact']
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.Artifact.outputs.tag }}
+      environment: development
+  Testing:
+    needs: ['Artifact']
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.Artifact.outputs.tag }}
+      environment: testing
+  Staging:
+    needs: ['Testing']
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.Testing.outputs.tag }}
+      environment: staging
+  Production:
+    needs: ['Staging']
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.Staging.outputs.tag }}
+      environment: production

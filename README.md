@@ -1,6 +1,9 @@
 # GitHub Workflow Multi Env
 
-A nodejs-expressjs project with a complex workflow for promotion artifact between environment
+A nodejs-expressjs project with a complex workflow for promotion artifact between environment:
+
+![](doc/demo.gif)
+
 
 ## Features
 - Jest: Unit test

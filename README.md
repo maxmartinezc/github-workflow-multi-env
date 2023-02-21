@@ -11,7 +11,7 @@ A nodejs-expressjs project with a complex workflow for promotion artifact betwee
 - awsl-handler: For run on lambda
 - node-server: For run on local
 - check-coverage: Default rule branches 80,functions 80, lines 80
-- Dependency Review: Vulnerabilities and licences violations scan review
+- Dependency Review: Vulnerabilities and license violations scan review
 - AWS S3 & Lambda Function integration: Upload an artifact to S3 Bucket an deploy into lambda function
 
 ### Multi-Environment
